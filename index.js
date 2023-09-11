@@ -53,9 +53,7 @@ app.get('/oauth2/idpresponse', async (req, res) => {
         `http://${returnToHostname}/api/callback`;
   
       // Serialize the state and include it in the redirect URL
-      const reEncodedState = Buffer.from(JSON.stringify(parsedState)).toString('base64');
-      const serializedState = qs.stringify({ state: reEncodedState });
-
+      const serializedState = qs.stringify({ state: state });
       const redirectUrl = `${callbackUrl}?${serializedState}`;
   
       // Retrieve user's GitHub information
