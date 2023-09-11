@@ -42,9 +42,15 @@ app.get('/oauth2/idpresponse', async (req, res) => {
       const parsedState = JSON.parse(decodedState);
       const returnTo = parsedState.returnTo;
   
-      // Extract hostname and modify the redirect URL
-      const returnToHostname = new url.URL(returnTo).hostname;
-      const callbackUrl = `http://${returnToHostname}/api/callback`;
+      // Extract hostname and port to modify the redirect URL
+      const returnToUrl = new url.URL(returnTo);
+      const returnToHostname = returnToUrl.hostname;
+      const returnToPort = returnToUrl.port;
+  
+      // Create callback URL and append port if it exists
+      const callbackUrl = returnToPort ? 
+        `http://${returnToHostname}:${returnToPort}/api/callback` : 
+        `http://${returnToHostname}/api/callback`;
   
       // Serialize the state and include it in the redirect URL
       const serializedState = qs.stringify({ state: decodedState });
@@ -69,7 +75,6 @@ app.get('/oauth2/idpresponse', async (req, res) => {
     }
   });
   
-
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
 });
