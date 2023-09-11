@@ -2,6 +2,10 @@ const express = require('express');
 const axios = require('axios');
 const app = express();
 const port = 3000;
+const url = require('url');
+const qs = require('querystring');
+
+
 
 // Step 1: Redirect to GitHub's OAuth 2.0 authorization endpoint
 app.get('/auth/github', (req, res) => {
@@ -17,50 +21,54 @@ app.get('/auth/github', (req, res) => {
 
 // Step 2: GitHub redirects back to your site
 app.get('/oauth2/idpresponse', async (req, res) => {
-  const { code , state } = req.query;
-
-  try {
-    // Exchange code for an access token
-    const response = await axios.post('https://github.com/login/oauth/access_token', {
-      client_id: process.env.GITHUB_CLIENT_ID,
-      client_secret: process.env.GITHUB_CLIENT_SECRET,
-      code,
-    }, {
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    const { access_token: accessToken } = response.data;
-
-    // Decode and parse the state parameter to get the returnTo URL
-    const decodedState = Buffer.from(state, 'base64').toString('utf-8');
-    const parsedState = JSON.parse(decodedState);
-    const returnTo = parsedState.returnTo;
-
-
-    // Use the access token to retrieve user's GitHub information (or any other operations)
-    const userResponse = await axios.get('https://api.github.com/user', {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
-    });
-
-    const userData = userResponse.data;
-    // res.json(userData);
-
-    // For demonstration purposes, user data is logged. 
-    // In a real-world scenario, you might save this data or use it in other ways.
-    console.log('User Data:', userResponse.data);
-
-    // Redirect the user to the returnTo URL
-    res.redirect(302, returnTo);
-    
-
-  } catch (error) {
-    res.status(500).send('Error during GitHub OAuth');
-  }
-});
+    const { code, state } = req.query;
+  
+    try {
+      // Exchange code for an access token
+      const response = await axios.post('https://github.com/login/oauth/access_token', {
+        client_id: process.env.GITHUB_CLIENT_ID,
+        client_secret: process.env.GITHUB_CLIENT_SECRET,
+        code,
+      }, {
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+  
+      const { access_token: accessToken } = response.data;
+  
+      // Decode and parse the state parameter to get the returnTo URL
+      const decodedState = Buffer.from(state, 'base64').toString('utf-8');
+      const parsedState = JSON.parse(decodedState);
+      const returnTo = parsedState.returnTo;
+  
+      // Extract hostname and modify the redirect URL
+      const returnToHostname = new url.URL(returnTo).hostname;
+      const callbackUrl = `http://${returnToHostname}/api/callback`;
+  
+      // Serialize the state and include it in the redirect URL
+      const serializedState = qs.stringify({ state: decodedState });
+      const redirectUrl = `${callbackUrl}?${serializedState}`;
+  
+      // Retrieve user's GitHub information
+      const userResponse = await axios.get('https://api.github.com/user', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+  
+      // Log user data for demonstration purposes
+      console.log('User Data:', userResponse.data);
+  
+      // Redirect the user to the new callback URL, including the state
+      res.redirect(302, redirectUrl);
+  
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).send('Error during GitHub OAuth');
+    }
+  });
+  
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
