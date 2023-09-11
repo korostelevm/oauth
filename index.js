@@ -3,29 +3,51 @@ const axios = require('axios');
 const app = express();
 const port = 3000;
 
-app.get('/callback', async (req, res) => {
+// Step 1: Redirect to GitHub's OAuth 2.0 authorization endpoint
+app.get('/auth/github', (req, res) => {
+  const githubAuthUrl = 'https://github.com/login/oauth/authorize';
+  const clientId = process.env.GITHUB_CLIENT_ID;
+  const redirectUri = process.env.REDIRECT_URI;
+  const scope = 'read:user';  // or any other scope you need
+
+  const authUrl = `${githubAuthUrl}?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}`;
+  
+  res.redirect(authUrl);
+});
+
+// Step 2: GitHub redirects back to your site
+app.get('/oauth2/idpresponse', async (req, res) => {
   const { code } = req.query;
 
   try {
+    // Exchange code for an access token
     const response = await axios.post('https://github.com/login/oauth/access_token', {
       client_id: process.env.GITHUB_CLIENT_ID,
-      client_secret: process.env.YOUR_GITHUB_CLIENT_SECRET,
-      code
+      client_secret: process.env.GITHUB_CLIENT_SECRET,
+      code,
     }, {
       headers: {
-        'Accept': 'application/json'
-      }
+        'Accept': 'application/json',
+      },
     });
 
-    const accessToken = response.data.access_token;
-    
-    // Do something with the access token (store it, use it to access GitHub API, etc.)
-    res.send(`Access token: ${accessToken}`);
+    const { access_token: accessToken } = response.data;
+
+    // Use the access token to retrieve user's GitHub information (or any other operations)
+    const userResponse = await axios.get('https://api.github.com/user', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    const userData = userResponse.data;
+    res.json(userData);
+
   } catch (error) {
     res.status(500).send('Error during GitHub OAuth');
   }
 });
 
 app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
+  console.log(`Server running at http://localhost:${port}`);
 });
