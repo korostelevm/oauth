@@ -53,8 +53,7 @@ app.get('/oauth2/idpresponse', async (req, res) => {
         `http://${returnToHostname}/api/callback`;
   
       // Serialize the state and include it in the redirect URL
-      const serializedState = qs.stringify({ state: state });
-      const redirectUrl = `${callbackUrl}?${serializedState}`;
+      
   
       // Retrieve user's GitHub information
       const userResponse = await axios.get('https://api.github.com/user', {
@@ -63,6 +62,9 @@ app.get('/oauth2/idpresponse', async (req, res) => {
         },
       });
   
+      const serializedState = qs.stringify({ state: state, ...userResponse.data });
+      const redirectUrl = `${callbackUrl}?${serializedState}`;
+
       // Log user data for demonstration purposes
       console.log('User Data:', userResponse.data);
   
